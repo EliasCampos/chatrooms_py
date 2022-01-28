@@ -1,0 +1,9 @@
+FROM python:3.8-slim-buster
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev \
+                                                                 python3-dev \
+                                                                 git \
+                                                                 && rm -rf /var/lib/apt/lists/*
+COPY requirements/ requirements/
+RUN pip install --upgrade pip
+RUN pip install -r ./requirements/local.txt --src=/root/pip

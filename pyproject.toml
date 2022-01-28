@@ -1,0 +1,4 @@
+[tool.aerich]
+tortoise_orm = "chatrooms.config.tortoise_conf.TORTOISE_ORM"
+location = "./chatrooms/migrations"
+src_folder = "./."

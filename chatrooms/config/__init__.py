@@ -1,7 +1,7 @@
 import secrets
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseSettings, PostgresDsn, validator
+from pydantic import AnyHttpUrl, BaseSettings, PostgresDsn, validator
 
 
 class Settings(BaseSettings):
@@ -20,13 +20,27 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return v
         return PostgresDsn.build(
-            scheme="postgresql",
+            scheme="postgres",
             host=values.get("POSTGRES_HOST"),
             port=values.get("POSTGRES_PORT"),
             path=f"/{values.get('POSTGRES_DB') or ''}",
             user=values.get("POSTGRES_USER"),
             password=values.get("POSTGRES_PASSWORD"),
         )
+
+    CORS_ORIGINS: List[AnyHttpUrl] = []
+
+    @validator("CORS_ORIGINS", pre=True)
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, (list, str)):
+            return v
+        raise ValueError(v)
+
+    APPS_MODELS: List[str] = [
+
+    ]
 
     class Config:
         case_sensitive = True

@@ -1,12 +1,15 @@
 from tortoise import fields, models
 
-from chatrooms.apps.users.security import generate_token
+from chatrooms.apps.users.security import generate_token, verify_password
 
 
 class User(models.Model):
     email = fields.CharField(max_length=100, unique=True)
     password = fields.CharField(max_length=100)
     date_join = fields.DatetimeField(auto_now_add=True)
+
+    def check_password(self, password):
+        return verify_password(plain_password=password, hashed_password=self.password)
 
 
 class Token(models.Model):

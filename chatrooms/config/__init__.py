@@ -40,6 +40,7 @@ class Settings(BaseSettings):
 
     APPS_MODELS: List[str] = [
         "chatrooms.apps.users.models",
+        "chatrooms.apps.chats.models",
         "aerich.models",
     ]
 

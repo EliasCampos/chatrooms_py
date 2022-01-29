@@ -3,8 +3,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from chatrooms.apps.chats.schemas import ChatCreate, ChatDetail, ChatOwn
+from chatrooms.apps.chats.schemas import ChatCreate, ChatDetail, ChatOwn, ChatJoinResult
 from chatrooms.apps.chats.models import Chat
+from chatrooms.apps.common.pagination import paginate_queryset
 from chatrooms.apps.users.authentication import get_current_user
 from chatrooms.apps.users.models import User
 from starlette.status import (
@@ -12,6 +13,7 @@ from starlette.status import (
     HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND,
 )
 from tortoise.exceptions import DoesNotExist
+from tortoise.expressions import Q
 
 
 chats_router = APIRouter()
@@ -41,14 +43,47 @@ async def delete_chat(chat_id: UUID, user: User = Depends(get_current_user)):
     return None
 
 
-@chats_router.get('/own', status_code=HTTP_201_CREATED, response_model=List[ChatOwn])
+@chats_router.get('/own', response_model=List[ChatOwn])
 async def list_own_chats(page: int = 1, user: User = Depends(get_current_user)):
-    page = max(page, 1)
-    page_size = 20
-
-    qs = Chat.filter(creator=user).order_by('-created_at').limit(page_size)
-    if page > 1:
-        qs = qs.offset(page_size * (page - 1))
+    qs = paginate_queryset(
+        Chat.filter(creator=user).order_by('-created_at'),
+        page_size=20, page=page,
+    )
 
     chats = await qs
     return [ChatOwn.from_orm(chat) for chat in chats]
+
+
+@chats_router.post('/{chat_id}/access', response_model=ChatJoinResult)
+async def join_chat(chat_id: UUID, user: User = Depends(get_current_user)):
+    try:
+        chat = await Chat.get(id=chat_id)
+    except DoesNotExist:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Chat not found.")
+
+    if chat.creator_id != user.id:
+        await chat.participants.add(user)
+
+    return {'detail': "Joined"}
+
+
+@chats_router.get('/joined', response_model=List[ChatDetail])
+async def list_joined_chats(page: int = 1, user: User = Depends(get_current_user)):
+    qs = paginate_queryset(
+        Chat.filter(participants=user).select_related('creator').order_by('title'),
+        page_size=20, page=page,
+    )
+
+    chats = await qs
+    return [ChatDetail.from_orm(chat) for chat in chats]
+
+
+@chats_router.get('/{chat_id}', response_model=ChatDetail)
+async def retrieve_chat_details(chat_id: UUID, user: User = Depends(get_current_user)):
+    qs = Chat.available_to_user(user).select_related('creator')
+    try:
+        chat = await qs.get(id=chat_id)
+    except DoesNotExist:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Chat not found.")
+
+    return ChatDetail.from_orm(chat)

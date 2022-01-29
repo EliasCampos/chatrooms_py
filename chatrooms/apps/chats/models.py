@@ -1,4 +1,5 @@
 from tortoise import fields, models
+from tortoise.expressions import Q
 
 
 class Chat(models.Model):
@@ -8,3 +9,7 @@ class Chat(models.Model):
 
     creator = fields.ForeignKeyField('models.User', related_name='own_chats')
     participants = fields.ManyToManyField('models.User', related_name='joined_chats')
+
+    @classmethod
+    def available_to_user(cls, user):
+        return cls.filter(Q(creator=user) | Q(participants=user))

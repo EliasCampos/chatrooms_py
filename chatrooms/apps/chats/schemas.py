@@ -32,3 +32,7 @@ class ChatOwn(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class ChatJoinResult(BaseModel):
+    detail: str

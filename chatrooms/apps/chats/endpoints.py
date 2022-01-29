@@ -1,8 +1,9 @@
+from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from chatrooms.apps.chats.schemas import ChatCreate, ChatDetail
+from chatrooms.apps.chats.schemas import ChatCreate, ChatDetail, ChatOwn
 from chatrooms.apps.chats.models import Chat
 from chatrooms.apps.users.authentication import get_current_user
 from chatrooms.apps.users.models import User
@@ -38,3 +39,16 @@ async def delete_chat(chat_id: UUID, user: User = Depends(get_current_user)):
 
     await chat.delete()
     return None
+
+
+@chats_router.get('/own', status_code=HTTP_201_CREATED, response_model=List[ChatOwn])
+async def list_own_chats(page: int = 1, user: User = Depends(get_current_user)):
+    page = max(page, 1)
+    page_size = 20
+
+    qs = Chat.filter(creator=user).order_by('-created_at').limit(page_size)
+    if page > 1:
+        qs = qs.offset(page_size * (page - 1))
+
+    chats = await qs
+    return [ChatOwn.from_orm(chat) for chat in chats]

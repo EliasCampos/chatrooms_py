@@ -23,3 +23,12 @@ class ChatDetail(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class ChatOwn(BaseModel):
+    id: UUID
+    title: str
+    created_at: datetime
+
+    class Config:
+        orm_mode = True

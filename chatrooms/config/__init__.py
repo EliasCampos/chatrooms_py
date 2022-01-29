@@ -39,7 +39,8 @@ class Settings(BaseSettings):
         raise ValueError(v)
 
     APPS_MODELS: List[str] = [
-
+        "chatrooms.apps.users.models",
+        "aerich.models",
     ]
 
     class Config:

@@ -13,7 +13,6 @@ from starlette.status import (
     HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND,
 )
 from tortoise.exceptions import DoesNotExist
-from tortoise.expressions import Q
 
 
 chats_router = APIRouter()

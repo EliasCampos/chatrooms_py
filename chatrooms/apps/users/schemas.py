@@ -25,3 +25,7 @@ class TokenResult(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class LogoutResult(BaseModel):
+    detail: str

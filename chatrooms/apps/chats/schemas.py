@@ -36,3 +36,21 @@ class ChatOwn(BaseModel):
 
 class ChatJoinResult(BaseModel):
     detail: str
+
+
+class ChatMessageAuthor(BaseModel):
+    id: int
+    email: EmailStr
+
+    class Config:
+        orm_mode = True
+
+
+class ChatMessageDetail(BaseModel):
+    id: int
+    text: str
+    created_at: datetime
+    author: ChatMessageAuthor
+
+    class Config:
+        orm_mode = True

@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Optional
 from uuid import UUID
 
@@ -46,8 +47,10 @@ async def delete_chat(chat_id: UUID, user: User = Depends(get_current_user)):
     if chat.creator_id != user.id:
         raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Can't delete not own chat")
 
-    await chat.delete()
-    await chats_connections.disconnect_chat(chat_id=chat_id, error_code=WS_1011_INTERNAL_ERROR)
+    await asyncio.gather(
+        chat.delete(),
+        chats_connections.disconnect_chat(chat_id=chat_id, error_code=WS_1011_INTERNAL_ERROR),
+    )
     return None
 
 

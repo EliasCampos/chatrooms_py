@@ -7,10 +7,14 @@ from uuid import UUID
 from fastapi import status, Query, WebSocket
 from tortoise.exceptions import DoesNotExist
 
-from chatrooms.apps.users.models import Token
+from chatrooms.apps.users.models import User, Token
 
 
-async def get_ws_user(websocket: WebSocket, token: Optional[str] = Query(None)):
+def get_event_payload(event: str, payload: str) -> str:
+    return f'{event}||{payload}'
+
+
+async def get_ws_user(websocket: WebSocket, token: Optional[str] = Query(None)) -> Optional[User]:
     if not token:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return None
@@ -40,10 +44,17 @@ class ChatsConnectionManager:
         if not self._chats_users_connections[chat_id]:
             del self._chats_users_connections[chat_id]
 
-    async def send_chat_message(self, chat_id: UUID, event: str, payload: str):
-        message = f'{event}||{payload}'
+    async def send_chat_message(self, chat_id: UUID, message: str):
         tasks = [
             connection.send_text(message)
+            for user_connections in self._chats_users_connections[chat_id].values()
+            for connection in user_connections
+        ]
+        await asyncio.gather(*tasks)
+
+    async def disconnect_chat(self, chat_id: UUID, error_code: int):
+        tasks = [
+            connection.close(code=error_code)
             for user_connections in self._chats_users_connections[chat_id].values()
             for connection in user_connections
         ]

@@ -1,18 +1,22 @@
+import asyncio
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket
 
-from chatrooms.apps.chats.schemas import ChatCreate, ChatDetail, ChatOwn, ChatJoinResult, ChatMessageDetail
+from chatrooms.apps.chats.schemas import (
+    ChatCreate, ChatDetail, ChatOwn, ChatJoinResult, ChatMessageCreate, ChatMessageDetail,
+)
 from chatrooms.apps.chats.models import Chat, ChatMessage
-from chatrooms.apps.chats.websockets import get_ws_user, chats_connections
+from chatrooms.apps.chats.websockets import get_ws_user, chats_connections, get_event_payload
 from chatrooms.apps.common.pagination import paginate_queryset
 from chatrooms.apps.users.authentication import get_current_user
 from chatrooms.apps.users.models import User
+from pydantic import ValidationError
 from starlette.status import (
     HTTP_201_CREATED, HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND,
-    WS_1008_POLICY_VIOLATION
+    WS_1008_POLICY_VIOLATION, WS_1011_INTERNAL_ERROR,
 )
 from tortoise.exceptions import DoesNotExist
 
@@ -24,7 +28,10 @@ chats_router = APIRouter()
 async def create_chat(chat_data: ChatCreate, user: User = Depends(get_current_user)):
     is_title_taken = await Chat.filter(creator=user, title=chat_data.title).exists()
     if is_title_taken:
-        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail='You already created chat with the title.')
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail={'title': "You already created chat with the title."},
+        )
 
     chat = await Chat.create(**chat_data.dict(), creator=user)
     return ChatDetail.from_orm(chat)
@@ -40,7 +47,10 @@ async def delete_chat(chat_id: UUID, user: User = Depends(get_current_user)):
     if chat.creator_id != user.id:
         raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Can't delete not own chat")
 
-    await chat.delete()
+    await asyncio.gather(
+        chat.delete(),
+        chats_connections.disconnect_chat(chat_id=chat_id, error_code=WS_1011_INTERNAL_ERROR),
+    )
     return None
 
 
@@ -104,9 +114,16 @@ async def send_chat_messages(websocket: WebSocket, chat_id: UUID, user: Optional
     await websocket.accept()
     chats_connections.add_connection(chat.id, user.id, websocket)
     async for text in websocket.iter_text():
-        chat_message = await ChatMessage.create(text=text.rstrip(), chat=chat, author=user)
-        chat_message_payload = ChatMessageDetail.from_orm(chat_message)
-        await chats_connections.send_chat_message(chat.id, event='new_message', payload=chat_message_payload.json())
+        try:
+            message_data = ChatMessageCreate(text=text)
+        except ValidationError as err:
+            await websocket.send_text(get_event_payload(event='validation_error', payload=err.json()))
+        else:
+            chat_message = await ChatMessage.create(text=message_data.text, chat=chat, author=user)
+            chat_message_payload = ChatMessageDetail.from_orm(chat_message)
+            await chats_connections.send_chat_message(
+                chat_id=chat.id, message=get_event_payload(event='new_message', payload=chat_message_payload.json()),
+            )
     chats_connections.remove_connection(chat.id, user.id, websocket)
 
 

@@ -50,6 +50,7 @@ class ChatMessageDetail(BaseModel):
     id: int
     text: str
     created_at: datetime
+    is_deleted: bool
     author: ChatMessageAuthor
 
     class Config:

@@ -35,8 +35,13 @@ class ChatsConnectionManager:
 
     def remove_connection(self, chat_id: UUID, user_id: int, connection: WebSocket):
         self._chats_users_connections[chat_id][user_id].remove(connection)
+        if not self._chats_users_connections[chat_id][user_id]:
+            del self._chats_users_connections[chat_id][user_id]
+        if not self._chats_users_connections[chat_id]:
+            del self._chats_users_connections[chat_id]
 
-    async def send_chat_message(self, chat_id: UUID, message: str):
+    async def send_chat_message(self, chat_id: UUID, event: str, payload: str):
+        message = f'{event}||{payload}'
         tasks = [
             connection.send_text(message)
             for user_connections in self._chats_users_connections[chat_id].values()

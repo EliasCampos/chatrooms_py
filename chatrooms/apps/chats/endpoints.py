@@ -127,7 +127,7 @@ async def list_chat_messages(chat_id: UUID, page: int = 1, user: User = Depends(
 
 
 @chats_router.delete('/{chat_id}/messages/{message_id}', status_code=HTTP_204_NO_CONTENT)
-async def list_chat_messages(chat_id: UUID, message_id: int, user: User = Depends(get_current_user)):
+async def delete_chat_message(chat_id: UUID, message_id: int, user: User = Depends(get_current_user)):
     try:
         chat = await Chat.available_to_user(user).select_related('creator').get(id=chat_id)
     except DoesNotExist:

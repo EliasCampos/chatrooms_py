@@ -1,10 +1,10 @@
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, constr
 
 
 class ChatCreate(BaseModel):
-    title: str
+    title: constr(min_length=1, max_length=160, strip_whitespace=True)
 
 
 class ChatCreator(BaseModel):
@@ -36,6 +36,10 @@ class ChatOwn(BaseModel):
 
 class ChatJoinResult(BaseModel):
     detail: str
+
+
+class ChatMessageCreate(BaseModel):
+    text: constr(min_length=1, max_length=500, strip_whitespace=True)
 
 
 class ChatMessageAuthor(BaseModel):

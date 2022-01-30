@@ -1,16 +1,18 @@
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket
 
-from chatrooms.apps.chats.schemas import ChatCreate, ChatDetail, ChatOwn, ChatJoinResult
-from chatrooms.apps.chats.models import Chat
+from chatrooms.apps.chats.schemas import ChatCreate, ChatDetail, ChatOwn, ChatJoinResult, ChatMessageDetail
+from chatrooms.apps.chats.models import Chat, ChatMessage
+from chatrooms.apps.chats.websockets import get_ws_user, chats_connections
 from chatrooms.apps.common.pagination import paginate_queryset
 from chatrooms.apps.users.authentication import get_current_user
 from chatrooms.apps.users.models import User
 from starlette.status import (
     HTTP_201_CREATED, HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND,
+    WS_1008_POLICY_VIOLATION
 )
 from tortoise.exceptions import DoesNotExist
 
@@ -86,3 +88,60 @@ async def retrieve_chat_details(chat_id: UUID, user: User = Depends(get_current_
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Chat not found.")
 
     return ChatDetail.from_orm(chat)
+
+
+@chats_router.websocket('/ws/{chat_id}')
+async def send_chat_messages(websocket: WebSocket, chat_id: UUID, user: Optional[User] = Depends(get_ws_user)):
+    if not user:
+        return
+
+    try:
+        chat = await Chat.available_to_user(user).get(id=chat_id)
+    except DoesNotExist:
+        await websocket.close(code=WS_1008_POLICY_VIOLATION)
+        return
+
+    await websocket.accept()
+    chats_connections.add_connection(chat.id, user.id, websocket)
+    async for text in websocket.iter_text():
+        chat_message = await ChatMessage.create(text=text.rstrip(), chat=chat, author=user)
+        chat_message_payload = ChatMessageDetail.from_orm(chat_message)
+        await chats_connections.send_chat_message(chat.id, event='new_message', payload=chat_message_payload.json())
+    chats_connections.remove_connection(chat.id, user.id, websocket)
+
+
+@chats_router.get('/{chat_id}/messages', response_model=List[ChatMessageDetail])
+async def list_chat_messages(chat_id: UUID, page: int = 1, user: User = Depends(get_current_user)):
+    try:
+        chat = await Chat.available_to_user(user).select_related('creator').get(id=chat_id)
+    except DoesNotExist:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Chat not found.")
+
+    qs = paginate_queryset(
+        ChatMessage.filter(chat=chat).select_related('author').order_by('-id'),
+        page_size=20, page=page,
+    )
+
+    messages = await qs
+    return [ChatMessageDetail.from_orm(msg) for msg in messages]
+
+
+@chats_router.delete('/{chat_id}/messages/{message_id}', status_code=HTTP_204_NO_CONTENT)
+async def list_chat_messages(chat_id: UUID, message_id: int, user: User = Depends(get_current_user)):
+    try:
+        chat = await Chat.available_to_user(user).select_related('creator').get(id=chat_id)
+    except DoesNotExist:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Chat not found.")
+
+    try:
+        message = await ChatMessage.get(chat=chat, id=message_id)
+    except DoesNotExist:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Chat message not found.")
+
+    if message.author_id != user.id:
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Can't delete not own chat")
+
+    message.text = ''
+    message.is_deleted = True
+    await message.save()
+    return None

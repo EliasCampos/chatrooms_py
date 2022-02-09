@@ -121,6 +121,7 @@ async def send_chat_messages(websocket: WebSocket, chat_id: UUID, user: Optional
         else:
             chat_message = await ChatMessage.create(text=message_data.text, chat=chat, author=user)
             chat_message_payload = ChatMessageDetail.from_orm(chat_message)
+            chat_message_payload.dict()
             await chats_connections.send_chat_message(
                 chat_id=chat.id, message=get_event_payload(event='new_message', payload=chat_message_payload.json()),
             )

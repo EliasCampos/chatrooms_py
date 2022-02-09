@@ -11,7 +11,7 @@ from chatrooms.apps.users.models import User, Token
 
 
 def get_event_payload(event: str, payload: str) -> str:
-    return f'{event}||{payload}'
+    return f'{event}:{payload}'
 
 
 async def get_ws_user(websocket: WebSocket, token: Optional[str] = Query(None)) -> Optional[User]:

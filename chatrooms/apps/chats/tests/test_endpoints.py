@@ -5,7 +5,7 @@ from fastapi import status
 import websockets
 
 from chatrooms.apps.chats.models import Chat, ChatMessage
-from chatrooms.apps.chats.tests.factories import ChatFactory
+from chatrooms.apps.chats.tests.factories import ChatFactory, ChatMessageFactory
 from chatrooms.apps.users.models import Token
 from chatrooms.apps.users.tests.factories import UserFactory
 from chatrooms.apps.users.tests.utils import authenticate
@@ -152,7 +152,7 @@ async def test_retrieve_chat_details_joined_chat(async_client, user):
 
 
 async def test_send_chat_messages(live_server, user):
-    chat = await Chat.create(title="test", creator=user)
+    chat = await ChatFactory(creator=user)
     await Token.create(user=user, key="111")
     other_user = await UserFactory()
     await chat.participants.add(other_user)
@@ -193,3 +193,58 @@ async def test_send_chat_messages(live_server, user):
     assert data2['id'] == message2.id
     assert data2['created_at'] == message2.created_at.isoformat()
     assert not data2['is_deleted']
+
+
+async def test_list_chat_messages(async_client, user):
+    chat = await ChatFactory()
+    await chat.participants.add(user)
+
+    msg3, msg2, msg1 = await ChatMessageFactory.create_batch(size=3, chat=chat)
+
+    await authenticate(async_client, user)
+    response = await async_client.get(f'/api/v1/chats/{chat.id}/messages')
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert len(data) == 3
+    assert data[0]['id'] == msg1.id
+    assert data[1]['id'] == msg2.id
+    assert data[2]['id'] == msg3.id
+
+    assert data[0]['text'] == msg1.text
+    assert data[0]['created_at'] == msg1.created_at.isoformat()
+    assert not data[0]['is_deleted']
+    assert data[0]['author']['id'] == msg1.author_id
+    assert data[0]['author']['email'] == msg1.author.email
+
+
+async def test_delete_chat_message(async_client, user):
+    chat = await ChatFactory()
+    await chat.participants.add(user)
+
+    message = await ChatMessageFactory(chat=chat, author=user)
+
+    await authenticate(async_client, user)
+    response = await async_client.delete(f'/api/v1/chats/{chat.id}/messages/{message.id}')
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    await message.refresh_from_db()
+    assert message.text == ''
+    assert message.is_deleted
+
+
+async def test_delete_chat_message_not_own_message(async_client, user):
+    chat = await ChatFactory()
+    await chat.participants.add(user)
+
+    message = await ChatMessageFactory(chat=chat)
+
+    await authenticate(async_client, user)
+    response = await async_client.delete(f'/api/v1/chats/{chat.id}/messages/{message.id}')
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    await message.refresh_from_db()
+    assert not message.is_deleted
+
+    data = response.json()
+    assert data['detail'] == "Can't delete not own chat"

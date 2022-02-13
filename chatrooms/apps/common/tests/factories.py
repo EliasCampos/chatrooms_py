@@ -20,5 +20,4 @@ class TortoiseModelFactory(factory.Factory):
 
     @classmethod
     async def create_batch(cls, size, **kwargs):
-        create_tasks = super().create_batch(size, **kwargs)
-        return await asyncio.gather(*create_tasks)
+        return [await cls.create(**kwargs) for _ in range(size)]

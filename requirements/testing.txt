@@ -6,3 +6,5 @@ pytest-mock==3.7.0
 
 httpx==0.22.0
 websockets==10.1
+
+factory-boy==3.2.1

@@ -17,7 +17,7 @@ async def test_create_chat(async_client, user):
     }
 
     await authenticate(async_client, user)
-    response = await async_client.post(f'/api/v1/chats/', json=payload)
+    response = await async_client.post('/api/v1/chats/', json=payload)
     assert response.status_code == status.HTTP_201_CREATED
 
     assert await Chat.filter(title="test_chat", creator=user).exists()
@@ -37,7 +37,7 @@ async def test_create_chat_title_exists(async_client, user):
         "title": chat.title,
     }
     await authenticate(async_client, chat.creator)
-    response = await async_client.post(f'/api/v1/chats/', json=payload)
+    response = await async_client.post('/api/v1/chats/', json=payload)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     data = response.json()
     assert data['detail']['title'] == "You already created chat with the title."
@@ -71,6 +71,84 @@ async def test_delete_chat_does_not_exist(async_client, user):
 
     data = response.json()
     assert data['detail'] == "Chat not found."
+
+
+async def test_list_own_chats(async_client, user):
+    chat2 = await ChatFactory(creator=user)
+    chat1 = await ChatFactory(creator=user)
+
+    await authenticate(async_client, user)
+    response = await async_client.get('/api/v1/chats/own')
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert data[0]['id'] == str(chat1.id)
+    assert data[1]['id'] == str(chat2.id)
+
+    assert data[0]['title'] == chat1.title
+    assert data[0]['created_at'] == chat1.created_at.isoformat()
+
+
+async def test_join_chat(async_client, user):
+    chat = await ChatFactory()
+
+    await authenticate(async_client, user)
+    response = await async_client.post(f'/api/v1/chats/{chat.id}/access')
+    assert response.status_code == status.HTTP_200_OK
+    assert await chat.participants.filter(id=user.id).exists()
+    data = response.json()
+    assert data['detail'] == 'Joined'
+
+
+async def test_list_joined_chats(async_client, user):
+    chat2 = await ChatFactory(title='B')
+    await chat2.participants.add(user)
+    chat1 = await ChatFactory(title='A')
+    await chat1.participants.add(user)
+
+    await authenticate(async_client, user)
+    response = await async_client.get('/api/v1/chats/joined')
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert data[0]['id'] == str(chat1.id)
+    assert data[1]['id'] == str(chat2.id)
+
+    assert data[0]['title'] == chat1.title
+    assert data[0]['created_at'] == chat1.created_at.isoformat()
+    assert data[0]['creator']['id'] == chat1.creator_id
+    assert data[0]['creator']['email'] == chat1.creator.email
+
+
+async def test_retrieve_chat_details_own_chat(async_client, user):
+    chat = await ChatFactory(creator=user)
+
+    await authenticate(async_client, user)
+    response = await async_client.get(f'/api/v1/chats/{chat.id}')
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert data['id'] == str(chat.id)
+    assert data['title'] == chat.title
+    assert data['created_at'] == chat.created_at.isoformat()
+    assert data['creator']['id'] == user.id
+    assert data['creator']['email'] == user.email
+
+
+async def test_retrieve_chat_details_joined_chat(async_client, user):
+    chat = await ChatFactory()
+    await chat.participants.add(user)
+
+    await authenticate(async_client, user)
+    response = await async_client.get(f'/api/v1/chats/{chat.id}')
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert data['id'] == str(chat.id)
+    assert data['title'] == chat.title
+    assert data['created_at'] == chat.created_at.isoformat()
+    assert data['creator']['id'] == chat.creator_id
+    assert data['creator']['email'] == chat.creator.email
 
 
 async def test_send_chat_messages(live_server, user):

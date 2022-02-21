@@ -82,11 +82,15 @@ async def test_list_own_chats(async_client, user):
     assert response.status_code == status.HTTP_200_OK
 
     data = response.json()
-    assert data[0]['id'] == str(chat1.id)
-    assert data[1]['id'] == str(chat2.id)
+    assert data['count'] == 2
+    assert data['previous'] is None
+    assert data['next'] is None
+    results = data['results']
+    assert results[0]['id'] == str(chat1.id)
+    assert results[1]['id'] == str(chat2.id)
 
-    assert data[0]['title'] == chat1.title
-    assert data[0]['created_at'] == chat1.created_at.isoformat()
+    assert results[0]['title'] == chat1.title
+    assert results[0]['created_at'] == chat1.created_at.isoformat()
 
 
 async def test_join_chat(async_client, user):
@@ -111,13 +115,14 @@ async def test_list_joined_chats(async_client, user):
     assert response.status_code == status.HTTP_200_OK
 
     data = response.json()
-    assert data[0]['id'] == str(chat1.id)
-    assert data[1]['id'] == str(chat2.id)
+    results = data['results']
+    assert results[0]['id'] == str(chat1.id)
+    assert results[1]['id'] == str(chat2.id)
 
-    assert data[0]['title'] == chat1.title
-    assert data[0]['created_at'] == chat1.created_at.isoformat()
-    assert data[0]['creator']['id'] == chat1.creator_id
-    assert data[0]['creator']['email'] == chat1.creator.email
+    assert results[0]['title'] == chat1.title
+    assert results[0]['created_at'] == chat1.created_at.isoformat()
+    assert results[0]['creator']['id'] == chat1.creator_id
+    assert results[0]['creator']['email'] == chat1.creator.email
 
 
 async def test_retrieve_chat_details_own_chat(async_client, user):
@@ -206,16 +211,17 @@ async def test_list_chat_messages(async_client, user):
     assert response.status_code == status.HTTP_200_OK
 
     data = response.json()
-    assert len(data) == 3
-    assert data[0]['id'] == msg1.id
-    assert data[1]['id'] == msg2.id
-    assert data[2]['id'] == msg3.id
+    results = data['results']
+    assert len(results) == 3
+    assert results[0]['id'] == msg1.id
+    assert results[1]['id'] == msg2.id
+    assert results[2]['id'] == msg3.id
 
-    assert data[0]['text'] == msg1.text
-    assert data[0]['created_at'] == msg1.created_at.isoformat()
-    assert not data[0]['is_deleted']
-    assert data[0]['author']['id'] == msg1.author_id
-    assert data[0]['author']['email'] == msg1.author.email
+    assert results[0]['text'] == msg1.text
+    assert results[0]['created_at'] == msg1.created_at.isoformat()
+    assert not results[0]['is_deleted']
+    assert results[0]['author']['id'] == msg1.author_id
+    assert results[0]['author']['email'] == msg1.author.email
 
 
 async def test_delete_chat_message(async_client, user):

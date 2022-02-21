@@ -1,16 +1,14 @@
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, status
 from tortoise.exceptions import DoesNotExist
 
 from chatrooms.apps.chats import services as chat_services
-from chatrooms.apps.chats.schemas import (
-    ChatCreate, ChatDetail, ChatOwn, ChatJoinResult, ChatMessageDetail,
-)
+from chatrooms.apps.chats.pagination import ChatPagination, ChatOwnPagination, ChatMessagePagination
+from chatrooms.apps.chats.schemas import ChatCreate, ChatDetail, ChatJoinResult
 from chatrooms.apps.chats.models import Chat, ChatMessage
 from chatrooms.apps.chats.websockets import get_ws_user
-from chatrooms.apps.common.pagination import paginate_queryset
 from chatrooms.apps.users.authentication import get_current_user
 from chatrooms.apps.users.models import User
 
@@ -35,15 +33,12 @@ async def delete_chat(chat_id: UUID, user: User = Depends(get_current_user)):
     return None
 
 
-@chats_router.get('/own', response_model=List[ChatOwn])
+@chats_router.get('/own', response_model=ChatOwnPagination)
 async def list_own_chats(page: int = 1, user: User = Depends(get_current_user)):
-    qs = paginate_queryset(
-        Chat.filter(creator=user).order_by('-created_at'),
+    return await ChatOwnPagination.paginate_queryset(
+        qs=Chat.filter(creator=user).order_by('-created_at'),
         page_size=20, page=page,
     )
-
-    chats = await qs
-    return [ChatOwn.from_orm(chat) for chat in chats]
 
 
 @chats_router.post('/{chat_id}/access', response_model=ChatJoinResult)
@@ -57,15 +52,12 @@ async def join_chat(chat_id: UUID, user: User = Depends(get_current_user)):
     return {'detail': "Joined"}
 
 
-@chats_router.get('/joined', response_model=List[ChatDetail])
+@chats_router.get('/joined', response_model=ChatPagination)
 async def list_joined_chats(page: int = 1, user: User = Depends(get_current_user)):
-    qs = paginate_queryset(
-        Chat.filter(participants=user).select_related('creator').order_by('title'),
+    return await ChatPagination.paginate_queryset(
+        qs=Chat.filter(participants=user).select_related('creator').order_by('title'),
         page_size=20, page=page,
     )
-
-    chats = await qs
-    return [ChatDetail.from_orm(chat) for chat in chats]
 
 
 @chats_router.get('/{chat_id}', response_model=ChatDetail)
@@ -94,20 +86,17 @@ async def send_chat_messages(websocket: WebSocket, chat_id: UUID, user: Optional
     await chat_services.handle_chat_connection(chat, user, websocket)
 
 
-@chats_router.get('/{chat_id}/messages', response_model=List[ChatMessageDetail])
+@chats_router.get('/{chat_id}/messages', response_model=ChatMessagePagination)
 async def list_chat_messages(chat_id: UUID, page: int = 1, user: User = Depends(get_current_user)):
     try:
         chat = await Chat.available_to_user(user).select_related('creator').get(id=chat_id)
     except DoesNotExist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found.")
 
-    qs = paginate_queryset(
-        ChatMessage.filter(chat=chat).select_related('author').order_by('-id'),
+    return await ChatMessagePagination.paginate_queryset(
+        qs=ChatMessage.filter(chat=chat).select_related('author').order_by('-id'),
         page_size=20, page=page,
     )
-
-    messages = await qs
-    return [ChatMessageDetail.from_orm(msg) for msg in messages]
 
 
 @chats_router.delete('/{chat_id}/messages/{message_id}', status_code=status.HTTP_204_NO_CONTENT)

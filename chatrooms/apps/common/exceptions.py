@@ -3,9 +3,9 @@ from typing import Dict
 
 class BadInputError(ValueError):
 
-    def __init__(self, detail: Dict[str, str]):
-        self.detail = detail
-        super().__init__(detail)
+    def __init__(self, message: Dict[str, str]):
+        self.message = message
+        super().__init__(message)
 
 
 class PermissionDeniedError(RuntimeError):

@@ -37,7 +37,7 @@ register_tortoise(
 
 @app.exception_handler(BadInputError)
 async def bad_input_error_handler(__: Request, exc: BadInputError):
-    return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=exc.detail)
+    return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=exc.message)
 
 
 @app.exception_handler(PermissionDeniedError)

@@ -36,7 +36,7 @@ async def test_register_user_already_exists(async_client, user):
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     data = response.json()
-    assert data['detail']['email'] == "User with the email already exists."
+    assert data['email'] == "User with the email already exists."
 
 
 async def test_login_user(async_client, user):
@@ -89,7 +89,7 @@ async def test_login_user_invalid_email(async_client, user):
     assert not await Token.filter(user=user).exists()
 
     data = response.json()
-    assert data['detail']['non_field_errors'] == "Invalid email or password."
+    assert data['non_field_errors'] == "Invalid email or password."
 
 
 async def test_login_user_invalid_password(async_client, user):
@@ -104,7 +104,7 @@ async def test_login_user_invalid_password(async_client, user):
     assert not await Token.filter(user=user).exists()
 
     data = response.json()
-    assert data['detail']['non_field_errors'] == "Invalid email or password."
+    assert data['non_field_errors'] == "Invalid email or password."
 
 
 async def test_logout_user(async_client, user):

@@ -40,7 +40,7 @@ async def test_create_chat_title_exists(async_client, user):
     response = await async_client.post('/api/v1/chats/', json=payload)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     data = response.json()
-    assert data['detail']['title'] == "You already created chat with the title."
+    assert data['title'] == "You already created chat with the title."
 
 
 async def test_delete_chat(async_client):

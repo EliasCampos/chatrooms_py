@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from tortoise.contrib.fastapi import register_tortoise
 
+from chatrooms.apps.common.exceptions import BadInputError, PermissionDeniedError
 from chatrooms.config import settings
 from chatrooms.config.endpoints import router
 
@@ -31,3 +33,13 @@ register_tortoise(
     generate_schemas=False,
     add_exception_handlers=True,
 )
+
+
+@app.exception_handler(BadInputError)
+async def bad_input_error_handler(__: Request, exc: BadInputError):
+    return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=exc.detail)
+
+
+@app.exception_handler(PermissionDeniedError)
+async def permission_denied_error_handler(__: Request, exc: PermissionDeniedError):
+    return JSONResponse(status_code=status.HTTP_403_FORBIDDEN, content={'detail': exc.detail})

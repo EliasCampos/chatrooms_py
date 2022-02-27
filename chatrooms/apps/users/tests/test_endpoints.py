@@ -1,5 +1,7 @@
 from fastapi import status
 
+from chatrooms.apps.common.mail import fast_mail
+from chatrooms.apps.common.utils import int_to_base36
 from chatrooms.apps.users.models import User, Token
 from chatrooms.apps.users.tests.factories import USER_PASSWORD
 from chatrooms.apps.users.tests.utils import authenticate
@@ -118,3 +120,77 @@ async def test_logout_user(async_client, user):
 
     data = response.json()
     assert data['detail'] == "Logged out"
+
+
+async def test_reset_password(async_client, user):
+    payload = {
+        "email": user.email,
+    }
+
+    with fast_mail.record_messages() as outbox:
+        response = await async_client.post('/api/v1/auth/password/reset', json=payload)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data['detail'] == "Password reset e-mail has been sent."
+
+        assert len(outbox) == 1
+        assert outbox[0]['To'] == user.email
+        assert outbox[0]['Subject'] == 'Password Reset on ChatRooms'
+
+
+async def test_reset_password_bad_email(async_client):
+    payload = {
+        "email": "foo@bar.com",
+    }
+
+    with fast_mail.record_messages() as outbox:
+        response = await async_client.post('/api/v1/auth/password/reset', json=payload)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data['detail'] == "Password reset e-mail has been sent."
+
+        assert len(outbox) == 0
+
+
+async def test_reset_password_confirm(mocker, async_client, user):
+    mocker.patch('chatrooms.apps.users.services.PasswordResetTokenGenerator.check_token', return_value=True)
+
+    payload = {
+        "uuid": int_to_base36(user.pk),
+        "token": "foo-bar",
+        "new_password": "test_password"
+    }
+    response = await async_client.post('/api/v1/auth/password/reset/confirm', json=payload)
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data['detail'] == "Password has been reset with the new password."
+    await user.refresh_from_db()
+    assert user.check_password("test_password")
+
+
+async def test_reset_password_confirm_invalid_uuid(mocker, async_client):
+    mocker.patch('chatrooms.apps.users.services.PasswordResetTokenGenerator.check_token', return_value=True)
+
+    payload = {
+        "uuid": int_to_base36(42),
+        "token": "foo-bar",
+        "new_password": "test_password"
+    }
+    response = await async_client.post('/api/v1/auth/password/reset/confirm', json=payload)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    data = response.json()
+    assert data['uuid'] == "Bad uuid"
+
+
+async def test_reset_password_confirm_invalid_token(async_client, user):
+    payload = {
+        "uuid": int_to_base36(user.pk),
+        "token": "foo-bar",
+        "new_password": "test_password"
+    }
+    response = await async_client.post('/api/v1/auth/password/reset/confirm', json=payload)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    data = response.json()
+    assert data['token'] == "Invalid or expired token"

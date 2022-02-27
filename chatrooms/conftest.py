@@ -3,9 +3,14 @@ import asyncio
 from tortoise.contrib.test import finalizer, initializer
 from httpx import AsyncClient
 
+from chatrooms.apps.common.mail import fast_mail
 from chatrooms.apps.users.tests.factories import UserFactory
 from chatrooms.config import settings
 from main import app
+
+
+def pytest_configure(config):
+    fast_mail.config.SUPPRESS_SEND = 1
 
 
 @pytest.fixture(scope="session")

@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     DATABASE_URI: Optional[PostgresDsn] = None
 
+    MAIL_SERVER: str
+    MAIL_PORT: int
+    MAIL_USERNAME: str
+    MAIL_PASSWORD: str
+    MAIL_FROM: str = "admin@example.com"
+
     @validator("DATABASE_URI", pre=True)
     def assemble_db_connection(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
         if isinstance(v, str):

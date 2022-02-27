@@ -56,10 +56,10 @@ class PasswordResetTokenGenerator:
     def __init__(self):
         self.secret = settings.SECRET_KEY
 
-    def make_token(self, user: User):
+    def make_token(self, user: User) -> str:
         return self._make_token_with_timestamp(user, timestamp=self._now_seconds())
 
-    def check_token(self, user: User, token: str):
+    def check_token(self, user: User, token: str) -> bool:
         try:
             timestamp_b36, __ = token.split("-")
         except ValueError:

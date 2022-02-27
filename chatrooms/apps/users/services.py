@@ -51,7 +51,7 @@ class PasswordResetTokenGenerator:
     secret: str
 
     SALT: str = 'password_reset_token'
-    TIMEOUT = 60 * 60 * 24  # 1 day
+    TIMEOUT: int = 60 * 60 * 24  # 1 day
 
     def __init__(self):
         self.secret = settings.SECRET_KEY
@@ -115,7 +115,7 @@ async def _get_user_from_uuid36(uuid: str) -> User:
         raise BadInputError({'uuid': error_message})
 
 
-async def confirm_password_reset(confirm: PasswordResetConfirm):
+async def confirm_password_reset(confirm: PasswordResetConfirm) -> None:
     user = await _get_user_from_uuid36(confirm.uuid)
     if not PasswordResetTokenGenerator().check_token(user, token=confirm.token):
         raise BadInputError({'token': 'Invalid or expired token'})

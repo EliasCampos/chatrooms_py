@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, status
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, status, Request
 from tortoise.exceptions import DoesNotExist
 
 from chatrooms.apps.chats import services as chat_services
@@ -35,10 +35,10 @@ async def delete_chat(chat_id: UUID, user: User = Depends(get_current_user)):
 
 
 @chats_router.get('/own', response_model=ChatOwnPagination)
-async def list_own_chats(page: int = 1, user: User = Depends(get_current_user)):
+async def list_own_chats(request: Request, page: int = 1, user: User = Depends(get_current_user)):
     return await ChatOwnPagination.paginate_queryset(
         qs=Chat.filter(creator=user).order_by('-created_at'),
-        page_size=20, page=page,
+        page_size=20, page=page, request=request,
     )
 
 
@@ -54,10 +54,10 @@ async def join_chat(chat_id: UUID, user: User = Depends(get_current_user)):
 
 
 @chats_router.get('/joined', response_model=ChatPagination)
-async def list_joined_chats(page: int = 1, user: User = Depends(get_current_user)):
+async def list_joined_chats(request: Request, page: int = 1, user: User = Depends(get_current_user)):
     return await ChatPagination.paginate_queryset(
         qs=Chat.filter(participants=user).select_related('creator').order_by('title'),
-        page_size=20, page=page,
+        page_size=20, page=page, request=request,
     )
 
 
@@ -88,7 +88,7 @@ async def send_chat_messages(websocket: WebSocket, chat_id: UUID, user: Optional
 
 
 @chats_router.get('/{chat_id}/messages', response_model=ChatMessagePagination)
-async def list_chat_messages(chat_id: UUID, page: int = 1, user: User = Depends(get_current_user)):
+async def list_chat_messages(request: Request, chat_id: UUID, page: int = 1, user: User = Depends(get_current_user)):
     try:
         chat = await Chat.available_to_user(user).select_related('creator').get(id=chat_id)
     except DoesNotExist:
@@ -96,7 +96,7 @@ async def list_chat_messages(chat_id: UUID, page: int = 1, user: User = Depends(
 
     return await ChatMessagePagination.paginate_queryset(
         qs=ChatMessage.filter(chat=chat).select_related('author').order_by('-id'),
-        page_size=20, page=page,
+        page_size=20, page=page, request=request,
     )
 
 

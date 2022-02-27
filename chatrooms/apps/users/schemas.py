@@ -27,5 +27,16 @@ class TokenResult(BaseModel):
         orm_mode = True
 
 
-class LogoutResult(BaseModel):
-    detail: str
+class PasswordReset(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetCredentials(BaseModel):
+    uuid: str
+    token: str
+
+
+class PasswordResetConfirm(BaseModel):
+    uuid: constr(min_length=1)
+    token: constr(min_length=1)
+    new_password: constr(min_length=8, max_length=100)

@@ -34,10 +34,6 @@ class ChatOwn(BaseModel):
         orm_mode = True
 
 
-class ChatJoinResult(BaseModel):
-    detail: str
-
-
 class ChatMessageCreate(BaseModel):
     text: constr(min_length=1, max_length=500, strip_whitespace=True)
 

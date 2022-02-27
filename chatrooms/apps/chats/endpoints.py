@@ -6,9 +6,10 @@ from tortoise.exceptions import DoesNotExist
 
 from chatrooms.apps.chats import services as chat_services
 from chatrooms.apps.chats.pagination import ChatPagination, ChatOwnPagination, ChatMessagePagination
-from chatrooms.apps.chats.schemas import ChatCreate, ChatDetail, ChatJoinResult
+from chatrooms.apps.chats.schemas import ChatCreate, ChatDetail
 from chatrooms.apps.chats.models import Chat, ChatMessage
 from chatrooms.apps.chats.websockets import get_ws_user
+from chatrooms.apps.common.schemas import ResponseDetail
 from chatrooms.apps.users.authentication import get_current_user
 from chatrooms.apps.users.models import User
 
@@ -41,7 +42,7 @@ async def list_own_chats(page: int = 1, user: User = Depends(get_current_user)):
     )
 
 
-@chats_router.post('/{chat_id}/access', response_model=ChatJoinResult)
+@chats_router.post('/{chat_id}/access', response_model=ResponseDetail)
 async def join_chat(chat_id: UUID, user: User = Depends(get_current_user)):
     try:
         chat = await Chat.get(id=chat_id)

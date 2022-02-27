@@ -168,23 +168,26 @@ async def test_send_chat_messages(live_server, user):
         await ws1.send("test text")
         result1_1 = await ws1.recv()
         result1_2 = await ws2.recv()
-        assert result1_1.startswith('new_message:')
         assert result1_1 == result1_2
+        result1_1_data = json.loads(result1_1)
+        assert result1_1_data['event'] == 'new_message'
 
-        data1 = json.loads(result1_2.lstrip('new_message:'))
+        data1 = result1_1_data['payload']
         assert data1['text'] == "test text"
 
         await ws1.send("")
         result = await ws1.recv()
-        assert result.startswith('validation_error:')
+        result_data = json.loads(result)
+        assert result_data['event'] == 'validation_error'
 
         await ws2.send("other test text")
         result2_1 = await ws1.recv()
         result2_2 = await ws2.recv()
-        assert result2_1.startswith('new_message:')
         assert result2_1 == result2_2
+        result2_1_data = json.loads(result2_1)
+        assert result2_1_data['event'] == 'new_message'
 
-        data2 = json.loads(result2_2.lstrip('new_message:'))
+        data2 = result2_1_data['payload']
         assert data2['text'] == "other test text"
 
     assert await ChatMessage.filter(chat=chat, author=user, text="test text").count() == 1

@@ -50,11 +50,11 @@ async def handle_chat_connection(chat: Chat, user: User, websocket: WebSocket) -
         try:
             message_data = ChatMessageCreate(text=text)
         except ValidationError as err:
-            await websocket.send_text(get_event_payload(event='validation_error', payload=err.json()))
+            await websocket.send_text(get_event_payload(event='validation_error', payload=err))
         else:
             chat_message = await ChatMessage.create(text=message_data.text, chat=chat, author=user)
             chat_message_payload = ChatMessageDetail.from_orm(chat_message)
             await chats_connections.send_chat_message(
-                chat_id=chat.id, message=get_event_payload(event='new_message', payload=chat_message_payload.json()),
+                chat_id=chat.id, message=get_event_payload(event='new_message', payload=chat_message_payload),
             )
     chats_connections.remove_connection(chat.id, user.id, websocket)

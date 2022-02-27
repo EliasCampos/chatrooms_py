@@ -1,17 +1,19 @@
 import asyncio
 from collections import defaultdict
 from functools import partial
-from typing import Dict, Set, Optional
+import json
+from typing import Any, Dict, Set, Optional
 from uuid import UUID
 
 from fastapi import status, Query, WebSocket
+from pydantic import BaseModel, ValidationError
 from tortoise.exceptions import DoesNotExist
 
 from chatrooms.apps.users.models import User, Token
 
 
-def get_event_payload(event: str, payload: str) -> str:
-    return f'{event}:{payload}'
+def get_event_payload(event: str, payload: [BaseModel, ValidationError]) -> str:
+    return json.dumps({"event": event, "payload": "[PAYLOAD]"}).replace('"[PAYLOAD]"', payload.json())
 
 
 async def get_ws_user(websocket: WebSocket, token: Optional[str] = Query(None)) -> Optional[User]:

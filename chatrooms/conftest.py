@@ -1,6 +1,5 @@
 import pytest
 import asyncio
-from tortoise.transactions import in_transaction
 from tortoise.contrib.test import finalizer, initializer
 from httpx import AsyncClient
 from pydantic import PostgresDsn, parse_obj_as

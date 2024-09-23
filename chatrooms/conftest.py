@@ -19,10 +19,10 @@ def event_loop():
 
 
 @pytest.fixture(autouse=True)
- def fake_db(event_loop):
-     initializer(db_url=settings.DATABASE_URI, modules=settings.APPS_MODELS, loop=event_loop)
-     yield
-     finalizer()
+def fake_db(event_loop):
+    initializer(db_url=settings.DATABASE_URI, modules=settings.APPS_MODELS, loop=event_loop)
+    yield
+    finalizer()
 
 
 @pytest.fixture

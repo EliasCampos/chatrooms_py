@@ -2,6 +2,7 @@ import pytest
 import asyncio
 from tortoise.contrib.test import finalizer, initializer
 from httpx import AsyncClient
+from pydantic import PostgresDsn, parse_obj_as
 
 from chatrooms.apps.common.mail import fast_mail
 from chatrooms.apps.users.tests.factories import UserFactory
@@ -20,7 +21,16 @@ def event_loop():
 
 @pytest.fixture(autouse=True)
 def fake_db(event_loop):
-    initializer(db_url="sqlite://:memory:", modules=settings.APPS_MODELS, loop=event_loop)
+    base_url = parse_obj_as(PostgresDsn, settings.DATABASE_URI)
+    fake_url = PostgresDsn.build(
+        scheme=base_url.scheme,
+        host=base_url.host,
+        port=base_url.port,
+        path=f'{base_url.path}_TEST',
+        user=base_url.user,
+        password=base_url.password,
+    )
+    initializer(db_url=fake_url, modules=settings.APPS_MODELS, loop=event_loop)
     yield
     finalizer()
 

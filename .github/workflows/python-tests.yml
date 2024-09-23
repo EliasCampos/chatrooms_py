@@ -41,3 +41,8 @@ jobs:
       POSTGRES_DB: chatrooms
       POSTGRES_USER: chatrooms
       POSTGRES_PASSWORD: chatrooms
+      SECRET_KEY: 'change_me'
+      MAIL_SERVER: ''
+      MAIL_PORT: 0
+      MAIL_USERNAME: ''
+      MAIL_PASSWORD: ''
